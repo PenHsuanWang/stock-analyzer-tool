@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from src.analyzer.stock_analyzer import StockPriceAnalyzer
+from src.stockana.analyzer.stock_analyzer import StockPriceAnalyzer
 import math
 
 # Create a sample DataFrame for testing

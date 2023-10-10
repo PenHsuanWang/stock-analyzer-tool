@@ -4,7 +4,7 @@ import pandas as pd
 from unittest.mock import patch, Mock
 import pytest
 from requests.exceptions import HTTPError
-from src.data_io.data_fetcher import YFinanceFetcher
+from src.stockana.data_io.data_fetcher import YFinanceFetcher
 
 
 # Mock the yf.Ticker() call to avoid actual network requests
@@ -22,7 +22,7 @@ def yfinance_fetcher():
 # === test cases for `_extract_fetch_stock_and_time_range_params`
 
 def test_valid_params(yfinance_fetcher):
-    with patch('src.data_io.data_fetcher.yf.Ticker', side_effect=mock_yf_ticker):
+    with patch('src.stockana.data_io.data_fetcher.yf.Ticker', side_effect=mock_yf_ticker):
         result = yfinance_fetcher._extract_fetch_stock_and_time_range_params(
             stock_id="AAPL",
             start_date="2022-01-01",
@@ -37,7 +37,7 @@ def test_missing_parameters(yfinance_fetcher):
 
 
 def test_invalid_stock_id(yfinance_fetcher):
-    with patch('src.data_io.data_fetcher.yf.Ticker', side_effect=HTTPError()):
+    with patch('src.stockana.data_io.data_fetcher.yf.Ticker', side_effect=HTTPError()):
         with pytest.raises(ValueError, match="Invalid stock id: ABC"):
             yfinance_fetcher._extract_fetch_stock_and_time_range_params(
                 stock_id="ABC",
