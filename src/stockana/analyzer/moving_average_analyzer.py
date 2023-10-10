@@ -7,7 +7,7 @@ input the data from YahooFinanceDataLoader in pandas data frame format
 import pandas as pd
 
 
-class StockPriceAnalyzer:
+class MovingAverageAnalyzer:
     """Class for analyzing a single company's stock prices."""
 
     def __init__(self, company_data: pd.DataFrame):

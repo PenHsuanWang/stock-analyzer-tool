@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from src.stockana.analyzer.stock_analyzer import StockPriceAnalyzer
+from src.stockana.analyzer.moving_average_analyzer import MovingAverageAnalyzer
 import math
 
 # Create a sample DataFrame for testing
@@ -12,10 +12,10 @@ def create_test_data():
     df = pd.DataFrame(data)
     return df
 
-# Fixture to create an instance of StockPriceAnalyzer with test data
+# Fixture to create an instance of MovingAverageAnalyzer with test data
 @pytest.fixture
 def stock_analyzer():
-    return StockPriceAnalyzer(create_test_data())
+    return MovingAverageAnalyzer(create_test_data())
 
 
 # Test calculating_moving_average
