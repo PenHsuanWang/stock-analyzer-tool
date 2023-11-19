@@ -3,143 +3,185 @@ import pandas as pd
 
 
 class PatternDefinitions:
+    def __init__(self, doji_threshold=0.1, hammer_upper_shadow_multiplier=1):
+        self.doji_threshold = doji_threshold
+        self.hammer_upper_shadow_multiplier = hammer_upper_shadow_multiplier
+
+    @staticmethod
+    def _valid_candle(day):
+        """Check if the candle data is valid."""
+        return all(key in day for key in ['Open', 'Close', 'High', 'Low'])
+
     @staticmethod
     def is_bullish(open_price, close_price):
+        """Check if the candle is bullish."""
         return close_price > open_price
 
     @staticmethod
     def is_bearish(open_price, close_price):
+        """Check if the candle is bearish."""
         return close_price < open_price
 
-    @staticmethod
-    def is_doji(day):
+    def is_doji(self, day):
         """Check if the candle is a doji."""
-        # A doji's opening and closing prices should be nearly equal
-        return abs(day['Open'] - day['Close']) <= (day['High'] - day['Low']) * 0.1  # or another small percentage
+        if not self._valid_candle(day):
+            return False
+        return abs(day['Open'] - day['Close']) <= (day['High'] - day['Low']) * self.doji_threshold
 
-    @staticmethod
-    def is_long_legged(day):
+    def is_long_legged(self, day):
         """Check if the candle is a long-legged doji."""
-        # A long-legged doji reflects indecision, so it should have a small body and long upper and lower shadows
+        if not self._valid_candle(day):
+            return False
         body_size = abs(day['Open'] - day['Close'])
         total_range = day['High'] - day['Low']
-        return body_size <= total_range * 0.1  # or adjust the percentage as needed
+        return body_size <= total_range * self.doji_threshold
 
-    @staticmethod
-    def is_gravestone(day):
+    def is_gravestone(self, day):
         """Check if the candle is a gravestone doji."""
-        # A gravestone doji should have a small body and a long upper shadow
+        if not self._valid_candle(day):
+            return False
         body_size = abs(day['Open'] - day['Close'])
         upper_shadow = day['High'] - max(day['Open'], day['Close'])
-        return body_size <= (day['High'] - day['Low']) * 0.1 and upper_shadow >= body_size
+        return body_size <= (day['High'] - day['Low']) * self.doji_threshold and upper_shadow >= body_size
 
-    @staticmethod
-    def is_dragonfly(day):
+    def is_dragonfly(self, day):
         """Check if the candle is a dragonfly doji."""
-        # A dragonfly doji should have a small body and a long lower shadow
+        if not self._valid_candle(day):
+            return False
         body_size = abs(day['Open'] - day['Close'])
         lower_shadow = min(day['Open'], day['Close']) - day['Low']
-        return body_size <= (day['High'] - day['Low']) * 0.1 and lower_shadow >= body_size
+        return body_size <= (day['High'] - day['Low']) * self.doji_threshold and lower_shadow >= body_size
 
-    @staticmethod
-    def is_hammer(day):
+    def is_hammer(self, day, is_downtrend):
+        """Check if the candle is a hammer. Assumes it appears in a downtrend."""
+        if not self._valid_candle(day) or not is_downtrend:
+            return False
         body = abs(day['Close'] - day['Open'])
-        lower_shadow = day['Low'] - min(day['Open'], day['Close'])  # 修正此行
+        lower_shadow = day['Low'] - min(day['Open'], day['Close'])
+        upper_shadow = max(day['Open'], day['Close']) - day['High']
 
-        return lower_shadow >= 2 * body and day['Open'] <= (day['High'] + day['Low']) / 2
+        return lower_shadow >= 2 * body and upper_shadow <= body * self.hammer_upper_shadow_multiplier
 
-    @staticmethod
-    def is_inverse_hammer(day):
+    def is_inverse_hammer(self, day):
+        """Check if the candle is an inverse hammer."""
+        if not self._valid_candle(day):
+            return False
         body = abs(day['Close'] - day['Open'])
         upper_shadow = day['High'] - max(day['Open'], day['Close'])
-        return upper_shadow > 2 * body and body < (day['High'] - day['Low']) / 3
+        return upper_shadow >= 2 * body and body < (day['High'] - day['Low']) / 2
 
     @staticmethod
     def is_bullish_engulfing(day, prev_day):
+        """Check if the pattern is a bullish engulfing."""
+        if not all(key in day and key in prev_day for key in ['Open', 'Close']):
+            return False
         return PatternDefinitions.is_bullish(day['Open'], day['Close']) and \
-               PatternDefinitions.is_bearish(prev_day['Open'], prev_day['Close']) and \
-               day['Open'] < prev_day['Close'] and day['Close'] > prev_day['Open']
+            PatternDefinitions.is_bearish(prev_day['Open'], prev_day['Close']) and \
+            day['Open'] < prev_day['Close'] and day['Close'] > prev_day['Open']
 
     @staticmethod
     def is_piercing_line(day, prev_day):
+        """Check if the pattern is a piercing line."""
+        if not all(key in day and key in prev_day for key in ['Open', 'Close', 'High', 'Low']):
+            return False
         return PatternDefinitions.is_bearish(prev_day['Open'], prev_day['Close']) and \
-               PatternDefinitions.is_bullish(day['Open'], day['Close']) and \
-               day['Open'] < prev_day['Close'] and day['Close'] > (prev_day['Open'] + prev_day['Close']) / 2
+            PatternDefinitions.is_bullish(day['Open'], day['Close']) and \
+            day['Open'] < prev_day['Close'] and \
+            day['Close'] > (prev_day['Open'] + prev_day['Close']) / 2
 
     @staticmethod
     def is_morning_star(days):
         """Check if the 3-candle pattern is a morning star."""
         if len(days) != 3:
             return False
+        if not all(all(key in day for key in ['Open', 'Close', 'High', 'Low']) for day in days):
+            return False
 
-        first_candle = days.iloc[0]
-        second_candle = days.iloc[1]
-        third_candle = days.iloc[2]
+        first_candle, second_candle, third_candle = days[0], days[1], days[2]
 
         is_first_bearish = PatternDefinitions.is_bearish(first_candle['Open'], first_candle['Close'])
         is_third_bullish = PatternDefinitions.is_bullish(third_candle['Open'], third_candle['Close'])
 
-        # Check if the second candle is a doji or a small body
         is_second_doji = PatternDefinitions.is_doji(second_candle)
         is_second_small_body = abs(second_candle['Open'] - second_candle['Close']) <= (
-                first_candle['High'] - first_candle['Low']) * 0.1  # or another small percentage
+                first_candle['High'] - first_candle['Low']) * 0.1
 
-        # The third candle's close should be at least halfway up the body of the first candle
         is_third_closing_in_first_body = third_candle['Close'] >= (first_candle['Open'] + first_candle['Close']) / 2
 
-        return is_first_bearish and (
-                    is_second_doji or is_second_small_body) and is_third_bullish and is_third_closing_in_first_body
+        return is_first_bearish and (is_second_doji or is_second_small_body) and \
+            is_third_bullish and is_third_closing_in_first_body
 
     @staticmethod
     def is_three_white_soldiers(days):
+        """Check if the pattern is three white soldiers."""
         if len(days) != 3:
             return False
+        if not all(all(key in day for key in ['Open', 'Close']) for day in days):
+            return False
 
-        return all(PatternDefinitions.is_bullish(row['Open'], row['Close']) for _, row in days.iterrows()) and \
-            days.iloc[0]['Close'] < days.iloc[1]['Open'] < days.iloc[1]['Close'] < days.iloc[2]['Open']
+        return all(PatternDefinitions.is_bullish(day['Open'], day['Close']) for day in days) and \
+            days[0]['Close'] < days[1]['Open'] < days[1]['Close'] < days[2]['Open']
 
     @staticmethod
     def is_hanging_man(day, prev_day):
+        """Check if the pattern is a hanging man."""
+        if not all(key in day and key in prev_day for key in ['Open', 'Close']):
+            return False
         return PatternDefinitions.is_hammer(day) and \
-               PatternDefinitions.is_bearish(day['Open'], day['Close']) and \
-               prev_day['Close'] < day['Close']
+            PatternDefinitions.is_bearish(day['Open'], day['Close']) and \
+            prev_day['Close'] < day['Close']
 
     @staticmethod
     def is_shooting_star(day, prev_day):
+        """Check if the pattern is a shooting star."""
+        if not all(key in day and key in prev_day for key in ['Open', 'Close']):
+            return False
         return PatternDefinitions.is_inverse_hammer(day) and \
-               PatternDefinitions.is_bearish(day['Open'], day['Close']) and \
-               prev_day['Close'] < day['Close']
+            PatternDefinitions.is_bearish(day['Open'], day['Close']) and \
+            prev_day['Close'] < day['Close']
 
     @staticmethod
     def is_bearish_engulfing(day, prev_day):
-        return PatternDefinitions.is_bullish(prev_day['Open'], prev_day['Close']) and \
-               PatternDefinitions.is_bearish(day['Open'], day['Close']) and \
-               day['Open'] > prev_day['Close'] and day['Close'] < prev_day['Open']
+        """Check if the pattern is a bearish engulfing."""
+        if not all(key in day and key in prev_day for key in ['Open', 'Close']):
+            return False
+        return PatternDefinitions.is_bearish(day['Open'], day['Close']) and \
+            PatternDefinitions.is_bullish(prev_day['Open'], prev_day['Close']) and \
+            day['Open'] > prev_day['Close'] and day['Close'] < prev_day['Open']
 
     @staticmethod
     def is_evening_star(days):
+        """Check if the pattern is an evening star."""
         if len(days) != 3:
             return False
+        if not all(all(key in day for key in ['Open', 'Close']) for day in days):
+            return False
 
-        return PatternDefinitions.is_bullish(days.iloc[0]['Open'], days.iloc[0]['Close']) and \
-            min(days.iloc[1]['Open'], days.iloc[1]['Close']) < days.iloc[0]['Close'] and \
-            PatternDefinitions.is_bearish(days.iloc[2]['Open'], days.iloc[2]['Close']) and \
-            days.iloc[2]['Close'] < days.iloc[1]['Close']
+        return PatternDefinitions.is_bullish(days[0]['Open'], days[0]['Close']) and \
+            min(days[1]['Open'], days[1]['Close']) < days[0]['Close'] and \
+            PatternDefinitions.is_bearish(days[2]['Open'], days[2]['Close']) and \
+            days[2]['Close'] < days[1]['Close']
 
     @staticmethod
     def is_three_black_crows(days):
+        """Check if the pattern is three black crows."""
         if len(days) != 3:
             return False
+        if not all(all(key in day for key in ['Open', 'Close']) for day in days):
+            return False
 
-        return all(PatternDefinitions.is_bearish(row['Open'], row['Close']) for _, row in days.iterrows()) and \
-            days.iloc[0]['Open'] > days.iloc[1]['Open'] > days.iloc[2]['Open']
+        return all(PatternDefinitions.is_bearish(day['Open'], day['Close']) for day in days) and \
+            days[0]['Open'] > days[1]['Open'] > days[2]['Open']
 
     @staticmethod
     def is_dark_cloud_cover(day, prev_day):
+        """Check if the pattern is a dark cloud cover."""
+        if not all(key in day and key in prev_day for key in ['Open', 'Close']):
+            return False
         return PatternDefinitions.is_bullish(prev_day['Open'], prev_day['Close']) and \
-               PatternDefinitions.is_bearish(day['Open'], day['Close']) and \
-               day['Open'] > prev_day['Close'] and \
-               day['Close'] < (prev_day['Open'] + prev_day['Close']) / 2
+            PatternDefinitions.is_bearish(day['Open'], day['Close']) and \
+            day['Open'] > prev_day['Close'] and \
+            day['Close'] < (prev_day['Open'] + prev_day['Close']) / 2
 
 
 class PatternRecognizer:
