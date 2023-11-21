@@ -58,14 +58,6 @@ class TestPatternDefinitions:
         day = create_day(97, 105, 96, 99)
         assert not PatternDefinitions.is_bullish_engulfing(day, prev_day)
 
-    def test_is_bullish_engulfing_with_volume(self, pattern_definitions):
-        prev_day = create_day(100, 105, 95, 98, 1000)
-        day = create_day(97, 110, 96, 109, 1500)
-        assert PatternDefinitions.is_bullish_engulfing_with_volume(day, prev_day)
-
-        day['Volume'] = 800  # Lower volume than previous day
-        assert not PatternDefinitions.is_bullish_engulfing_with_volume(day, prev_day)
-
     def test_is_piercing_line(self):
         prev_day = create_day(100, 105, 90, 92)
         day = create_day(91, 102, 90, 101)
@@ -75,15 +67,15 @@ class TestPatternDefinitions:
         day = create_day(91, 99, 90, 95)
         assert not PatternDefinitions.is_piercing_line(day, prev_day)
 
-    def test_is_morning_star(self, pattern_definitions):
+    def test_is_morning_star(self):
         day1 = create_day(100, 105, 95, 96)
         day2 = create_day(95, 97, 94, 95.5)
         day3 = create_day(96, 105, 95, 104)
         days = [day1, day2, day3]
-        assert pattern_definitions.is_morning_star(days) == True
+        assert PatternDefinitions.is_morning_star(days) == True
 
         day3['Close'] = 95  # Third day does not close in the body of the first day
-        assert pattern_definitions.is_morning_star(days) == False
+        assert PatternDefinitions.is_morning_star(days) == False
 
     def test_is_three_white_soldiers(self):
         day1 = create_day(100, 105, 99, 104)
@@ -132,7 +124,7 @@ class TestPatternDefinitions:
 
     def test_is_evening_star(self):
         day1 = create_day(100, 105, 99, 104)  # Bullish candle
-        day2 = create_day(105, 106, 104, 105.5)  # Small body candle
+        day2 = create_day(103, 104, 102.5, 103.5)  # Small body candle
         day3 = create_day(105, 106, 100, 101)  # Bearish candle
         days = [day1, day2, day3]
         assert PatternDefinitions.is_evening_star(days)
@@ -156,7 +148,7 @@ class TestPatternDefinitions:
 
     def test_is_dark_cloud_cover(self):
         prev_day = create_day(100, 105, 95, 104)  # Bullish candle
-        day = create_day(105, 110, 100, 102)  # Opens above prev close, closes below midpoint
+        day = create_day(105, 110, 100, 101.5)  # Opens above prev close, closes below midpoint
         assert PatternDefinitions.is_dark_cloud_cover(day, prev_day)
 
         # Not a Dark Cloud Cover (does not close below midpoint)
@@ -166,6 +158,46 @@ class TestPatternDefinitions:
         # Not a Dark Cloud Cover (previous day is bearish)
         prev_day = create_day(100, 105, 95, 96)
         assert not PatternDefinitions.is_dark_cloud_cover(day, prev_day)
+
+    def test_is_engulfing_with_volume(self, pattern_definitions):
+        prev_day = create_day(100, 105, 95, 98, 1000)
+        day = create_day(97, 110, 96, 109, 1500)
+        assert pattern_definitions.is_engulfing_with_volume(day, prev_day, 'bullish')
+
+        day['Volume'] = 800  # Lower volume than previous day
+        assert not pattern_definitions.is_engulfing_with_volume(day, prev_day, 'bullish')
+
+        # test for bearish
+        prev_day = create_day(100, 105, 95, 102, 1000)
+        day = create_day(103, 106, 94, 96, 1500)
+        assert pattern_definitions.is_engulfing_with_volume(day, prev_day, 'bearish')
+
+        day['Volume'] = 800  # Lower volume than previous day
+        assert not pattern_definitions.is_engulfing_with_volume(day, prev_day, 'bearish')
+
+    def test_is_doji_with_volume(self, pattern_definitions):
+        prev_day = create_day(100, 105, 100, 102, 1000)
+        day = create_day(102, 103, 101, 102, 1500)  # Doji with small body
+        assert pattern_definitions.is_doji_with_volume(day, prev_day, 'standard')
+
+        day['Volume'] = 800
+        assert not pattern_definitions.is_doji_with_volume(day, prev_day, 'standard')
+
+    def test_is_hammer_with_volume(self, pattern_definitions):
+        prev_day = create_day(105, 110, 104, 106, 1000)
+        day = create_day(102, 103, 90, 100, 1500)  # Hammer in downtrend
+        assert pattern_definitions.is_hammer_with_volume(day, prev_day, is_downtrend=True)
+
+        day['Volume'] = 800
+        assert not pattern_definitions.is_hammer_with_volume(day, prev_day, is_downtrend=True)
+
+    def test_is_shooting_star_with_volume(self, pattern_definitions):
+        prev_day = create_day(95, 100, 94, 98, 1000)
+        day = create_day(99, 108, 98, 100, 1500)  # Shooting Star in uptrend
+        assert pattern_definitions.is_shooting_star_with_volume(day, prev_day, is_uptrend=True)
+
+        day['Volume'] = 800
+        assert not pattern_definitions.is_shooting_star_with_volume(day, prev_day, is_uptrend=True)
 
 
 if __name__ == "__main__":
