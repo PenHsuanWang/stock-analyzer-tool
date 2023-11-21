@@ -117,7 +117,12 @@ class PatternDefinitions:
             return False
         body = abs(day['Close'] - day['Open'])
         upper_shadow = day['High'] - max(day['Open'], day['Close'])
-        return upper_shadow >= 2 * body and body < (day['High'] - day['Low']) / 2
+        lower_shadow = min(day['Open'], day['Close']) - day['Low']
+        total_length = day['High'] - day['Low']
+
+        # Check if the upper shadow is at least twice the body
+        # and if the body is relatively small compared to the total length
+        return upper_shadow >= 2 * body and body < total_length / 3 and lower_shadow < body
 
     @staticmethod
     def is_bullish_engulfing(day, prev_day):
