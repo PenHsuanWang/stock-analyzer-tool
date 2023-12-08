@@ -1,6 +1,6 @@
 import logging
 import pandas as pd
-import numpy as np
+from typing import List, Dict
 
 # Initialize logging
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ class AdvancedFinancialIndicator:
     """
 
     @staticmethod
-    def validate_data(stock_data: pd.DataFrame, required_columns: list) -> bool:
+    def validate_data(stock_data: pd.DataFrame, required_columns: List[str]) -> bool:
         """
         Validate if the required columns are present in the DataFrame.
 
@@ -127,7 +127,7 @@ class AdvancedFinancialIndicator:
         return stock_data
 
     @staticmethod
-    def compute_fibonacci_retracement(stock_data: pd.DataFrame, start_date: str, end_date: str) -> dict:
+    def compute_fibonacci_retracement(stock_data: pd.DataFrame, start_date_str: str, end_date_str: str) -> Dict[str, float]:
         """
         Compute Fibonacci Retracement Levels based on maximum high and minimum low in a date range.
 
@@ -145,10 +145,15 @@ class AdvancedFinancialIndicator:
         """
         if 'Date' not in stock_data.columns:
             raise ValueError("DataFrame must contain a 'Date' column.")
-        if stock_data.index.name != 'Date':
-            stock_data = stock_data.set_index('Date')
 
-        relevant_data = stock_data.loc[start_date:end_date]
+        # Convert start_date and end_date to pandas Timestamp
+        start_date = pd.to_datetime(start_date_str)
+        end_date = pd.to_datetime(end_date_str)
+
+        # Filter the DataFrame based on the date range without altering the index
+        mask = (pd.to_datetime(stock_data['Date']) >= start_date) & (pd.to_datetime(stock_data['Date']) <= end_date)
+        relevant_data = stock_data[mask]
+
         if relevant_data.empty:
             raise ValueError("No data found for the given date range.")
 

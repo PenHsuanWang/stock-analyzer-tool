@@ -4,6 +4,7 @@ This module define the single responsibility to do numeric calculating related w
 
 import pandas as pd
 
+
 def calculate_moving_average(data_series: pd.Series, window_size: int) -> pd.Series:
     """
     Calculate the moving average of a given pandas Series.
@@ -23,4 +24,3 @@ def calculate_daily_return(data_series: pd.Series) -> pd.Series:
     :return: pandas Series of daily return rates
     """
     return data_series.pct_change().fillna(0)
-
