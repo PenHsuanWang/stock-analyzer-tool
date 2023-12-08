@@ -17,9 +17,12 @@ mypy_path = "src"
 check_untyped_defs = true
 disallow_any_generics = true
 ignore_missing_imports = true
-no_inplicit_imports = true
+no_implicit_reexport = true
 show_error_codes = true
 warn_redundant_casts = true
 warn_unreachable = true
 warn_unused_configs = true
-no_implicit_reexport = true
+
+[tool.mypy.overrides]
+module = "src.stockana.calc_advance_indicator"
+disallow_untyped_defs = false

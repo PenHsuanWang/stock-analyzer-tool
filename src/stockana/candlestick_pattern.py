@@ -155,6 +155,7 @@ class PatternDefinitions:
             day['Open'] < prev_day['Close'] and \
             day['Close'] > (prev_day['Open'] + prev_day['Close']) / 2
 
+    @staticmethod
     def is_morning_star(days):
         """
         Check if the 3-candle pattern is a morning star. The morning star pattern is a
@@ -380,7 +381,6 @@ class PatternRecognizer:
         for i in range(2, len(self.data)):
             day = self.data.iloc[i]
             prev_day = self.data.iloc[i - 1]
-            prev_prev_day = self.data.iloc[i - 2]
             days = self.data.iloc[i - 2:i + 1]
 
             date_index = day.name
