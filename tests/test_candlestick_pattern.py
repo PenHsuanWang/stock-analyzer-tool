@@ -1,7 +1,8 @@
 import pytest
 import os
+import pandas as pd
 
-from src.stockana.candlestick_pattern import PatternDefinitions
+from src.stockana.candlestick_pattern import PatternDefinitions, PatternRecognizer
 
 
 def create_day(open_price, high_price, low_price, close_price, volume=0):
@@ -12,6 +13,11 @@ class TestPatternDefinitions:
     @pytest.fixture
     def pattern_definitions(self):
         return PatternDefinitions()
+
+    def test_is_volume_increasing(self):
+        assert PatternDefinitions.is_volume_increasing({'Volume': 200}, {'Volume': 100}) == True
+        assert PatternDefinitions.is_volume_increasing({'Volume': 100}, {'Volume': 200}) == False
+        assert PatternDefinitions.is_volume_increasing({'Volume': 100}, {'Volume': 100}) == False
 
     def test_is_bullish(self):
         assert PatternDefinitions.is_bullish(100, 110) == True
@@ -47,6 +53,15 @@ class TestPatternDefinitions:
 
         # Not an inverse hammer due to inappropriate shape
         day = create_day(100, 105, 95, 103)
+        assert not pattern_definitions.is_inverse_hammer(day)
+
+    def test_is_hammer_invalid_candle(self, pattern_definitions):
+        # Test with an invalid candle (missing keys)
+        day = {'Open': 100, 'Close': 98, 'Low': 90}  # Missing 'High' key
+        assert not pattern_definitions.is_hammer(day, is_downtrend=True)
+
+    def test_is_inverse_hammer_invalid_candle(self, pattern_definitions):
+        day = {'Open': 100, 'Close': 102, 'Low': 98}  # Missing 'High' key
         assert not pattern_definitions.is_inverse_hammer(day)
 
     def test_is_bullish_engulfing(self):
@@ -198,6 +213,51 @@ class TestPatternDefinitions:
 
         day['Volume'] = 800
         assert not pattern_definitions.is_shooting_star_with_volume(day, prev_day, is_uptrend=True)
+
+    def test_is_long_legged_doji(self, pattern_definitions):
+        # Long-legged Doji
+        day = create_day(100, 110, 90, 100.05)
+        assert pattern_definitions.is_long_legged(day)
+
+        # Not a long-legged Doji due to large body
+        day = create_day(100, 110, 90, 105)
+        assert not pattern_definitions.is_long_legged(day)
+
+    def test_is_gravestone_doji(self, pattern_definitions):
+        # Gravestone Doji
+        day = create_day(100, 110, 99.95, 100)
+        assert pattern_definitions.is_gravestone(day)
+
+        # Not a gravestone Doji
+        day = create_day(100, 110, 90, 105)
+        assert not pattern_definitions.is_gravestone(day)
+
+    def test_is_dragonfly_doji(self, pattern_definitions):
+        # Dragonfly Doji
+        day = create_day(100, 100.05, 90, 100)
+        assert pattern_definitions.is_dragonfly(day)
+
+        # Not a dragonfly Doji
+        day = create_day(100, 110, 90, 110)
+        assert not pattern_definitions.is_dragonfly(day)
+
+    def test_is_downtrend(self):
+        data = pd.DataFrame({'Close': [100, 98, 96, 94, 92]})
+        pattern_recognizer = PatternRecognizer(data)
+        assert pattern_recognizer.is_downtrend(4, 3)
+
+        data = pd.DataFrame({'Close': [100, 102, 104, 106, 108]})
+        pattern_recognizer = PatternRecognizer(data)
+        assert not pattern_recognizer.is_downtrend(4, 3)
+
+    def test_is_uptrend(self):
+        data = pd.DataFrame({'Close': [100, 102, 104, 106, 108]})
+        pattern_recognizer = PatternRecognizer(data)
+        assert pattern_recognizer.is_uptrend(4, 3) == True
+
+        data = pd.DataFrame({'Close': [100, 98, 96, 94, 92]})
+        pattern_recognizer = PatternRecognizer(data)
+        assert pattern_recognizer.is_uptrend(4, 3) == False
 
 
 if __name__ == "__main__":
