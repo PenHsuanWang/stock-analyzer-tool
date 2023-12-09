@@ -1,3 +1,4 @@
+[![Python CI](https://github.com/PenHsuanWang/stock-analyzer-tool/actions/workflows/main-ci.yml/badge.svg)](https://github.com/PenHsuanWang/stock-analyzer-tool/actions/workflows/main-ci.yml)
 # Stock Analysis Toolkit
 
 ## Overview
