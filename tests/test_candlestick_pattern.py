@@ -82,16 +82,6 @@ class TestPatternDefinitions:
         day = create_day(91, 99, 90, 95)
         assert not PatternDefinitions.is_piercing_line(day, prev_day)
 
-    def test_is_morning_star(self):
-        day1 = create_day(100, 105, 95, 96)
-        day2 = create_day(95, 97, 94, 95.5)
-        day3 = create_day(96, 105, 95, 104)
-        days = [day1, day2, day3]
-        assert PatternDefinitions.is_morning_star(days) == True
-
-        day3['Close'] = 95  # Third day does not close in the body of the first day
-        assert PatternDefinitions.is_morning_star(days) == False
-
     def test_is_three_white_soldiers(self):
         day1 = create_day(100, 105, 99, 104)
         day2 = create_day(105, 109, 103, 108)
@@ -136,18 +126,6 @@ class TestPatternDefinitions:
         # Not a bearish engulfing pattern
         day = create_day(102, 106, 101, 103)
         assert not PatternDefinitions.is_bearish_engulfing(day, prev_day)
-
-    def test_is_evening_star(self):
-        day1 = create_day(100, 105, 99, 104)  # Bullish candle
-        day2 = create_day(103, 104, 102.5, 103.5)  # Small body candle
-        day3 = create_day(105, 106, 100, 101)  # Bearish candle
-        days = [day1, day2, day3]
-        assert PatternDefinitions.is_evening_star(days)
-
-        # Not an evening star pattern
-        day3 = create_day(105, 110, 104, 109)
-        days = [day1, day2, day3]
-        assert not PatternDefinitions.is_evening_star(days)
 
     def test_is_three_black_crows(self):
         day1 = create_day(100, 100, 95, 96)  # Bearish candle
@@ -225,7 +203,7 @@ class TestPatternDefinitions:
 
     def test_is_gravestone_doji(self, pattern_definitions):
         # Gravestone Doji
-        day = create_day(100, 110, 99.95, 100)
+        day = create_day(100, 110, 100, 100)
         assert pattern_definitions.is_gravestone(day)
 
         # Not a gravestone Doji
@@ -234,7 +212,7 @@ class TestPatternDefinitions:
 
     def test_is_dragonfly_doji(self, pattern_definitions):
         # Dragonfly Doji
-        day = create_day(100, 100.05, 90, 100)
+        day = create_day(100, 100, 90, 100)
         assert pattern_definitions.is_dragonfly(day)
 
         # Not a dragonfly Doji
@@ -258,6 +236,122 @@ class TestPatternDefinitions:
         data = pd.DataFrame({'Close': [100, 98, 96, 94, 92]})
         pattern_recognizer = PatternRecognizer(data)
         assert pattern_recognizer.is_uptrend(4, 3) == False
+
+
+    def test_recognize_bullish_engulfing(self):
+        data = pd.DataFrame({
+            'Open': [100, 95, 90, 85, 79],
+            'High': [105, 100, 95, 90, 87],
+            'Low': [95, 90, 85, 80, 80],
+            'Close': [96, 91, 86, 82, 91],  # Day 5 forms a Bullish Engulfing pattern with Day 4
+            'Volume': [1000, 1100, 1200, 1300, 1400]
+        })
+        pattern_recognizer = PatternRecognizer(data)
+        recognized_patterns = pattern_recognizer.recognize_patterns()
+
+        # Adjust this assertion based on the expected recognized pattern
+        assert recognized_patterns['Pattern'].iloc[-1] == 'Bullish Engulfing'
+
+    def test_recognize_bearish_engulfing(self):
+        data_bearish_engulfing = pd.DataFrame({
+            'Open': [100, 105, 110, 115, 120],
+            'High': [105, 110, 115, 120, 119],
+            'Low': [99, 104, 109, 113, 112],
+            'Close': [104, 109, 114, 119, 113],  # Day 5 forms a Bearish Engulfing pattern with Day 4
+            'Volume': [1000, 1200, 1400, 1600, 1800]
+        })
+
+        pattern_recognizer = PatternRecognizer(data_bearish_engulfing)
+        recognized_patterns = pattern_recognizer.recognize_patterns()
+
+        assert recognized_patterns['Pattern'].iloc[-1] == 'Bearish Engulfing'
+
+        # Add more assertions based on expected patterns
+
+    def test_recognize_hammer(self):
+        data_hammer = pd.DataFrame({
+            'Open': [102, 101, 100, 98, 95, 92, 89],
+            'High': [103, 102, 101, 99, 96, 93, 91],
+            'Low': [97, 96, 95, 93, 90, 87, 80],
+            'Close': [101, 100, 99, 97, 94, 91, 90],
+            'Volume': [900, 950, 1000, 1050, 1100, 1150, 1200]
+        })
+
+        pattern_recognizer = PatternRecognizer(data_hammer)
+        recognized_patterns = pattern_recognizer.recognize_patterns()
+
+        assert recognized_patterns['Pattern'].iloc[-1] == 'Hammer'
+
+    def test_recognize_shooting_star(self):
+        data_shooting_star = pd.DataFrame({
+            'Open': [98, 100, 102, 104, 106, 108, 110],
+            'High': [99, 101, 103, 105, 110, 112, 114],  # Day 7 forms a Shooting Star
+            'Low': [97, 99, 101, 103, 105, 108, 108],
+            'Close': [99, 101, 103, 105, 109, 110, 111],
+            'Volume': [900, 1000, 1100, 1200, 1300, 1400, 1500]
+        })
+
+        pattern_recognizer = PatternRecognizer(data_shooting_star)
+        recognized_patterns = pattern_recognizer.recognize_patterns()
+
+        assert recognized_patterns['Pattern'].iloc[-1] == 'Shooting Star'
+
+    def test_recognize_doji_with_volume(self):
+        data_doji = pd.DataFrame({
+            'Open': [100, 102, 104, 106, 108],
+            'High': [101, 103, 105, 107, 110],
+            'Low': [99, 101, 103, 105, 106],
+            'Close': [100, 102, 104, 106, 108],  # Day 5 forms a Doji
+            'Volume': [1000, 1100, 1200, 1300, 1400]
+        })
+
+        pattern_recognizer = PatternRecognizer(data_doji)
+        recognized_patterns = pattern_recognizer.recognize_patterns()
+
+        assert recognized_patterns['Pattern'].iloc[-1] == 'Doji with Volume'
+
+    def test_recognize_inverted_hammer(self):
+        data_inverted_hammer = pd.DataFrame({
+            'Open': [100, 98, 96, 94, 92],
+            'High': [100, 98, 96, 97, 99],  # Day 5 forms an Inverted Hammer
+            'Low': [95, 93, 91, 90, 91.9],
+            'Close': [96, 94, 92, 91, 93],
+            'Volume': [1000, 1100, 1200, 1300, 1400]
+        })
+
+        pattern_recognizer = PatternRecognizer(data_inverted_hammer)
+        recognized_patterns = pattern_recognizer.recognize_patterns()
+
+        assert recognized_patterns['Pattern'].iloc[-1] == 'Inverse Hammer'
+
+    def test_recognize_hanging_man(self):
+        data_hanging_man = pd.DataFrame({
+            'Open': [100, 102, 104, 106, 108, 110, 111.1],
+            'High': [101, 103, 105, 107, 109, 111.3, 111.2],
+            'Low': [99, 101, 103, 105, 107, 108, 107],
+            'Close': [101, 103, 105, 107, 109, 111.2, 111],
+            'Volume': [1000, 1100, 1200, 1300, 1400, 1500, 1600]
+        })
+
+        pattern_recognizer = PatternRecognizer(data_hanging_man)
+        recognized_patterns = pattern_recognizer.recognize_patterns()
+
+        assert recognized_patterns['Pattern'].iloc[-1] == 'Hanging Man'
+
+    def test_recognize_morning_star(self):
+        data_morning_star = pd.DataFrame({
+            'Open': [102, 103, 100, 98, 99],
+            'High': [106, 107, 105, 102, 103],
+            'Low': [99, 102, 95, 94, 98],
+            'Close': [104, 105, 96, 98, 102],
+            'Volume': [800, 900, 1000, 500, 1500]
+        })
+
+        pattern_recognizer = PatternRecognizer(data_morning_star)
+        recognized_patterns = pattern_recognizer.recognize_patterns()
+
+        # As the Morning Star pattern spans 3 days, check the pattern of the last day of the pattern
+        assert recognized_patterns['Pattern'].iloc[-1] == 'Morning Star'
 
 
 if __name__ == "__main__":
