@@ -32,7 +32,7 @@ class PatternDefinitions:
         return close_price < open_price
 
     @staticmethod
-    def is_doji(day, doji_threshold=0.1):
+    def is_doji(day, doji_threshold=0.1, shadow_threshold=0.1):
         """
         Check if the candle is a doji. A doji is characterized by having a very small body,
         meaning the opening and closing prices are very close to each other. It indicates indecision
@@ -42,49 +42,62 @@ class PatternDefinitions:
         """
         if not PatternDefinitions._valid_candle(day):
             return False
-        return abs(day['Open'] - day['Close']) <= (day['High'] - day['Low']) * doji_threshold
 
-    @staticmethod
-    def is_long_legged(day, doji_threshold=0.1):
-        """
-        Check if the candle is a long-legged doji. This variant of a doji is where the
-        upper and lower shadows are much longer than the regular doji, reflecting a great amount
-        of indecision in the market. The 'doji_threshold' parameter is used to determine
-        the size of the candle's body in comparison to its shadows.
-        """
-        if not PatternDefinitions._valid_candle(day):
-            return False
-        body_size = abs(day['Open'] - day['Close'])
-        total_range = day['High'] - day['Low']
-        return body_size <= total_range * doji_threshold
+        body_size = abs(day['Close'] - day['Open'])
+        upper_shadow = day['High'] - max(day['Close'], day['Open'])
+        lower_shadow = min(day['Close'], day['Open']) - day['Low']
+        shadow_difference = abs(upper_shadow - lower_shadow)
 
+        body_is_small = body_size <= (day['High'] - day['Low']) * doji_threshold
+        shadows_are_approx_equal = shadow_difference <= (day['High'] - day['Low']) * shadow_threshold
+
+        return body_is_small and shadows_are_approx_equal
+
+    # Long-legged Doji check, where both shadows should be significantly long.
     @staticmethod
-    def is_gravestone(day, doji_threshold=0.1):
-        """
-        Check if the candle is a gravestone doji. This pattern is identified by a small or
-        nonexistent lower shadow and a long upper shadow, which suggests that the buying pressure
-        was countered by strong selling pressure. This typically occurs at the end of an uptrend,
-        signaling a bearish reversal. The 'doji_threshold' helps define the smallness of the body.
-        """
+    def is_long_legged(day, doji_threshold=0.1, shadow_threshold=0.1):
         if not PatternDefinitions._valid_candle(day):
             return False
         body_size = abs(day['Open'] - day['Close'])
         upper_shadow = day['High'] - max(day['Open'], day['Close'])
-        return body_size <= (day['High'] - day['Low']) * doji_threshold and upper_shadow >= body_size
+        lower_shadow = min(day['Open'], day['Close']) - day['Low']
+        shadow_difference = abs(upper_shadow - lower_shadow)
 
+        body_is_small = body_size <= (day['High'] - day['Low']) * doji_threshold
+        shadows_are_long = upper_shadow > body_size and lower_shadow > body_size
+        shadows_are_approx_equal = shadow_difference <= (day['High'] - day['Low']) * shadow_threshold
+
+        return body_is_small and shadows_are_long and shadows_are_approx_equal
+
+    # Gravestone Doji check, where the upper shadow is significantly long and lower shadow is small or nonexistent.
     @staticmethod
-    def is_dragonfly(day, doji_threshold=0.1):
-        """
-        Check if the candle is a dragonfly doji. This pattern has a long lower shadow and
-        no upper shadow, with the opening and closing prices at or near the day's high.
-        This pattern often signals a bullish reversal, especially when occurring after a downtrend.
-        The 'doji_threshold' parameter determines the upper limit for the size of the candle's body.
-        """
+    def is_gravestone(day, doji_threshold=0.1, shadow_threshold=0.1):
         if not PatternDefinitions._valid_candle(day):
             return False
         body_size = abs(day['Open'] - day['Close'])
+        upper_shadow = day['High'] - max(day['Open'], day['Close'])
         lower_shadow = min(day['Open'], day['Close']) - day['Low']
-        return body_size <= (day['High'] - day['Low']) * doji_threshold and lower_shadow >= body_size
+
+        body_is_small = body_size <= (day['High'] - day['Low']) * doji_threshold
+        upper_shadow_is_long = upper_shadow > body_size
+        lower_shadow_is_small = lower_shadow <= body_size * shadow_threshold
+
+        return body_is_small and upper_shadow_is_long and lower_shadow_is_small
+
+    # Dragonfly Doji check, where the lower shadow is significantly long and upper shadow is small or nonexistent.
+    @staticmethod
+    def is_dragonfly(day, doji_threshold=0.1, shadow_threshold=0.1):
+        if not PatternDefinitions._valid_candle(day):
+            return False
+        body_size = abs(day['Open'] - day['Close'])
+        upper_shadow = day['High'] - max(day['Open'], day['Close'])
+        lower_shadow = min(day['Open'], day['Close']) - day['Low']
+
+        body_is_small = body_size <= (day['High'] - day['Low']) * doji_threshold
+        lower_shadow_is_long = lower_shadow > body_size
+        upper_shadow_is_small = upper_shadow <= body_size * shadow_threshold
+
+        return body_is_small and lower_shadow_is_long and upper_shadow_is_small
 
     @staticmethod
     def is_hammer(day, is_downtrend, hammer_upper_shadow_multiplier=1):
@@ -167,10 +180,10 @@ class PatternDefinitions:
         """
         if len(days) != 3:
             return False
-        if not all(all(key in day for key in ['Open', 'Close', 'High', 'Low']) for day in days):
-            return False
+        # if not all(all(key in day for key in ['Open', 'Close', 'High', 'Low']) for day in days):
+        #     return False
 
-        first_candle, second_candle, third_candle = days[0], days[1], days[2]
+        first_candle, second_candle, third_candle = days.iloc[0], days.iloc[1], days.iloc[2]
 
         is_first_bearish = PatternDefinitions.is_bearish(first_candle['Open'], first_candle['Close'])
         is_third_bullish = PatternDefinitions.is_bullish(third_candle['Open'], third_candle['Close'])
@@ -258,13 +271,26 @@ class PatternDefinitions:
         """
         if len(days) != 3:
             return False
-        if not all(all(key in day for key in ['Open', 'Close']) for day in days):
-            return False
 
-        return PatternDefinitions.is_bullish(days[0]['Open'], days[0]['Close']) and \
-            min(days[1]['Open'], days[1]['Close']) < days[0]['Close'] and \
-            PatternDefinitions.is_bearish(days[2]['Open'], days[2]['Close']) and \
-            days[2]['Close'] < days[1]['Close']
+        first_candle, second_candle, third_candle = days.iloc[0], days.iloc[1], days.iloc[2]
+
+        is_first_bullish = PatternDefinitions.is_bullish(first_candle['Open'], first_candle['Close'])
+        is_third_bearish = PatternDefinitions.is_bearish(third_candle['Open'], third_candle['Close'])
+
+        # The second candle should be a small body candle, possibly a doji.
+        is_second_doji = PatternDefinitions.is_doji(second_candle)
+        is_second_small_body = abs(second_candle['Open'] - second_candle['Close']) <= (
+                first_candle['High'] - first_candle['Low']) * 0.1
+
+        gap_up_from_first = second_candle['Low'] > first_candle['High']
+        gap_down_to_third = second_candle['High'] < third_candle['Open']
+
+        # The third candle closes below the midpoint of the first candle's body.
+        is_third_closing_below_midpoint_of_first = third_candle['Close'] < (
+                    first_candle['Open'] + first_candle['Close']) / 2
+
+        return is_first_bullish and (is_second_doji or is_second_small_body) and is_third_bearish and \
+            gap_up_from_first and gap_down_to_third and is_third_closing_below_midpoint_of_first
 
     @staticmethod
     def is_three_black_crows(days):
@@ -312,15 +338,26 @@ class PatternDefinitions:
         return is_engulfing and PatternDefinitions.is_volume_increasing(day, prev_day)
 
     @staticmethod
-    def is_doji_with_volume(day, prev_day, doji_type):
+    def is_doji_with_volume(day, prev_day, doji_type, doji_threshold=0.1, shadow_threshold=0.1):
         """Check if the doji pattern occurs with increased volume."""
         if not PatternDefinitions._valid_candle_with_volume(day) or not PatternDefinitions._valid_candle_with_volume(
                 prev_day):
             return False
-        is_doji_type = (PatternDefinitions.is_doji(day) if doji_type == 'standard' else
-                        PatternDefinitions.is_long_legged(day) if doji_type == 'long_legged' else
-                        PatternDefinitions.is_gravestone(day) if doji_type == 'gravestone' else
-                        PatternDefinitions.is_dragonfly(day) if doji_type == 'dragonfly' else False)
+
+        # Pass the doji_threshold and shadow_threshold to the is_doji method
+        is_doji_type = False
+        if doji_type == 'standard':
+            is_doji_type = PatternDefinitions.is_doji(day, doji_threshold, shadow_threshold)
+        elif doji_type == 'long_legged':
+            # You might need to implement the is_long_legged method with shadow checking
+            is_doji_type = PatternDefinitions.is_long_legged(day, doji_threshold, shadow_threshold)
+        elif doji_type == 'gravestone':
+            # Adjust is_gravestone method if necessary to check for shadow lengths
+            is_doji_type = PatternDefinitions.is_gravestone(day, doji_threshold, shadow_threshold)
+        elif doji_type == 'dragonfly':
+            # Adjust is_dragonfly method if necessary to check for shadow lengths
+            is_doji_type = PatternDefinitions.is_dragonfly(day, doji_threshold, shadow_threshold)
+
         return is_doji_type and PatternDefinitions.is_volume_increasing(day, prev_day)
 
     @staticmethod
