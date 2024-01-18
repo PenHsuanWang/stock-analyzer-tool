@@ -48,11 +48,3 @@ class MarketConditionLabeler:
         self.data['Market Condition'] = self.data['Rolling Return'].apply(label)
 
         return self.data['Market Condition']
-    #
-    # def get_data(self):
-    #     """
-    #     Return the DataFrame with the market condition labels.
-    #     """
-    #     self.label_market()
-    #     return self.data
-

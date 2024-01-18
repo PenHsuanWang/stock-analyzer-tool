@@ -1,6 +1,6 @@
 import logging
 import pandas as pd
-from typing import List, Dict
+from typing import List, Dict, Tuple, Optional
 
 # Initialize logging
 logger = logging.getLogger(__name__)
@@ -46,62 +46,63 @@ class AdvancedFinancialIndicator:
 
     @staticmethod
     def compute_macd(stock_data: pd.DataFrame, short_window: int = 12, long_window: int = 26,
-                     signal_window: int = 9) -> pd.DataFrame:
+                     signal_window: int = 9) -> Tuple[Optional[pd.Series], Optional[pd.Series]]:
         """
         Compute Moving Average Convergence Divergence (MACD) and Signal Line.
 
         MACD is a trend-following momentum indicator that shows the relationship between
         two moving averages of a security's price. The MACD is calculated by subtracting
-        the 26-period EMA from the 12-period EMA. The result of that calculation is the
-        MACD line. A nine-day EMA of the MACD called the "signal line," is then plotted
-        on top of the MACD line, which can function as a trigger for buy and sell signals.
+        the long period EMA from the short period EMA. The result of that calculation is the
+        MACD line. A signal line, which is an EMA of the MACD, is then calculated and can
+        function as a trigger for buy and sell signals.
 
         :param stock_data: DataFrame containing stock data.
         :param short_window: Integer representing the short period EMA.
         :param long_window: Integer representing the long period EMA.
         :param signal_window: Integer representing the signal line EMA.
-        :return: DataFrame with the MACD and Signal Line added.
+        :return: A tuple of two pd.Series, the first is the MACD line and the second is the Signal Line.
         """
         if not AdvancedFinancialIndicator.validate_data(stock_data, ['Close']):
-            return stock_data
+            return None, None
 
-        stock_data['MACD'] = AdvancedFinancialIndicator.compute_ema(stock_data,
-                                                                    short_window) - AdvancedFinancialIndicator.compute_ema(
-            stock_data, long_window)
-        stock_data['Signal_Line'] = stock_data['MACD'].ewm(span=signal_window, adjust=False).mean()
-        return stock_data
+        macd_series = (AdvancedFinancialIndicator.compute_ema(stock_data, short_window) -
+                       AdvancedFinancialIndicator.compute_ema(stock_data, long_window))
+        signal_line_series = macd_series.ewm(span=signal_window, adjust=False).mean()
+        return macd_series, signal_line_series
 
     @staticmethod
     def compute_bollinger_bands(stock_data: pd.DataFrame, window: int = 20, num_std: int = 2,
-                                column: str = 'Close') -> pd.DataFrame:
+                                column: str = 'Close') -> Tuple[Optional[pd.Series], Optional[pd.Series], Optional[pd.Series]]:
         """
         Compute Bollinger Bands.
 
         Bollinger Bands are a type of statistical chart characterizing the prices and
-        volatility over time of a financial instrument or commodity, using a formulaic
-        method propounded by John Bollinger in the 1980s. They consist of a middle band
-        being an N-period simple moving average (SMA), an upper band at K times an N-period
-        standard deviation above the middle band, and a lower band at K times an N-period
-        standard deviation below the middle band.
+        volatility over time of a financial instrument or commodity. They consist of three
+        bands: a middle band being an N-period simple moving average (SMA), an upper band
+        at K times an N-period standard deviation above the middle band, and a lower band
+        at K times an N-period standard deviation below the middle band. These bands help
+        in identifying the overbought and oversold conditions in the market.
 
         :param stock_data: DataFrame containing stock data.
         :param window: Integer representing the moving average window size.
         :param num_std: Integer representing the number of standard deviations from the moving average.
         :param column: The column on which Bollinger Bands are to be computed.
-        :return: DataFrame with Bollinger Bands (Mid, Upper, Lower) added.
+        :return: A tuple of three pd.Series representing the Bollinger Upper, Middle, and Lower bands.
         """
         if not AdvancedFinancialIndicator.validate_data(stock_data, [column]):
-            return stock_data
+            return None, None, None
 
         rolling_mean = stock_data[column].rolling(window=window).mean()
         rolling_std = stock_data[column].rolling(window=window).std()
-        stock_data['Bollinger_Mid'] = rolling_mean
-        stock_data['Bollinger_Upper'] = rolling_mean + (rolling_std * num_std)
-        stock_data['Bollinger_Lower'] = rolling_mean - (rolling_std * num_std)
-        return stock_data
+
+        bollinger_upper_series = rolling_mean + (rolling_std * num_std)
+        bollinger_mid_series = rolling_mean
+        bollinger_lower_series = rolling_mean - (rolling_std * num_std)
+
+        return bollinger_upper_series, bollinger_mid_series, bollinger_lower_series
 
     @staticmethod
-    def compute_rsi(stock_data: pd.DataFrame, window: int = 14, column: str = 'Close') -> pd.DataFrame:
+    def compute_rsi(stock_data: pd.DataFrame, window: int = 14, column: str = 'Close') -> Optional[pd.Series]:
         """
         Compute Relative Strength Index (RSI).
 
@@ -114,17 +115,17 @@ class AdvancedFinancialIndicator:
         :param stock_data: DataFrame containing stock data.
         :param window: Integer representing the RSI calculation period.
         :param column: The column on which RSI is to be computed.
-        :return: DataFrame with the RSI values added.
+        :return: A pd.Series representing the RSI values, or None if validation fails.
         """
         if not AdvancedFinancialIndicator.validate_data(stock_data, [column]):
-            return stock_data
+            return None
 
         delta = stock_data[column].diff()
         gain = (delta.clip(lower=0)).rolling(window=window).mean()
         loss = (-delta.clip(upper=0)).rolling(window=window).mean()
         rs = gain / loss
-        stock_data['RSI'] = 100 - (100 / (1 + rs))
-        return stock_data
+        rsi_series = 100 - (100 / (1 + rs))
+        return rsi_series
 
     @staticmethod
     def compute_fibonacci_retracement(stock_data: pd.DataFrame, start_date_str: str, end_date_str: str) -> Dict[str, float]:
@@ -195,9 +196,11 @@ class AdvancedFinancialIndicator:
             return stock_data
 
         # Calculate indicators
-        stock_data = AdvancedFinancialIndicator.compute_macd(stock_data, short_window, long_window)
-        stock_data = AdvancedFinancialIndicator.compute_bollinger_bands(stock_data, volume_window, column=column)
-        stock_data = AdvancedFinancialIndicator.compute_rsi(stock_data, column=column)
+        stock_data['MACD'], stock_data['Signal_Line'] = (
+            AdvancedFinancialIndicator.compute_macd(stock_data, short_window, long_window))
+        stock_data['Bollinger_Upper'], stock_data['Bollinger_Mid'], stock_data['Bollinger_Lower'] = (
+            AdvancedFinancialIndicator.compute_bollinger_bands(stock_data, volume_window, column=column))
+        stock_data['RSI'] = AdvancedFinancialIndicator.compute_rsi(stock_data, column=column)
 
         # Define signals based on combined indicators
         stock_data['Buy_Signal'] = ((stock_data['MACD'] > stock_data['Signal_Line']) &
