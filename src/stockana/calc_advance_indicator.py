@@ -46,29 +46,33 @@ class AdvancedFinancialIndicator:
 
     @staticmethod
     def compute_macd(stock_data: pd.DataFrame, short_window: int = 12, long_window: int = 26,
-                     signal_window: int = 9) -> Tuple[Optional[pd.Series], Optional[pd.Series]]:
+                     signal_window: int = 9) -> Tuple[Optional[pd.Series], Optional[pd.Series], Optional[pd.Series]]:
         """
-        Compute Moving Average Convergence Divergence (MACD) and Signal Line.
+        Compute Moving Average Convergence Divergence (MACD), Signal Line, and MACD Histogram.
 
-        MACD is a trend-following momentum indicator that shows the relationship between
-        two moving averages of a security's price. The MACD is calculated by subtracting
-        the long period EMA from the short period EMA. The result of that calculation is the
-        MACD line. A signal line, which is an EMA of the MACD, is then calculated and can
-        function as a trigger for buy and sell signals.
+        The MACD is a trend-following momentum indicator that shows the relationship between
+        two moving averages of a security's price. It is calculated by subtracting the long period
+        EMA from the short period EMA, which results in the MACD line. The Signal Line is then
+        derived as an EMA of the MACD line and can act as a trigger for buy and sell signals.
+        The MACD Histogram represents the difference between the MACD line and the Signal Line,
+        indicating momentum shifts and potential trend reversals.
 
-        :param stock_data: DataFrame containing stock data.
-        :param short_window: Integer representing the short period EMA.
-        :param long_window: Integer representing the long period EMA.
-        :param signal_window: Integer representing the signal line EMA.
-        :return: A tuple of two pd.Series, the first is the MACD line and the second is the Signal Line.
+        :param stock_data: DataFrame containing stock data with a 'Close' column.
+        :param short_window: Integer representing the short period for EMA calculation, typically 12.
+        :param long_window: Integer representing the long period for EMA calculation, typically 26.
+        :param signal_window: Integer representing the period for the Signal Line EMA calculation, typically 9.
+        :return: A tuple of three pd.Series, which are the MACD line, the Signal Line, and the MACD Histogram, respectively.
         """
         if not AdvancedFinancialIndicator.validate_data(stock_data, ['Close']):
-            return None, None
+            return None, None, None
 
-        macd_series = (AdvancedFinancialIndicator.compute_ema(stock_data, short_window) -
-                       AdvancedFinancialIndicator.compute_ema(stock_data, long_window))
+        ema_short = AdvancedFinancialIndicator.compute_ema(stock_data, short_window)
+        ema_long = AdvancedFinancialIndicator.compute_ema(stock_data, long_window)
+        macd_series = ema_short - ema_long
         signal_line_series = macd_series.ewm(span=signal_window, adjust=False).mean()
-        return macd_series, signal_line_series
+        macd_histogram = macd_series - signal_line_series
+
+        return macd_series, signal_line_series, macd_histogram
 
     @staticmethod
     def compute_bollinger_bands(stock_data: pd.DataFrame, window: int = 20, num_std: int = 2,
@@ -173,7 +177,7 @@ class AdvancedFinancialIndicator:
         return levels
 
     @staticmethod
-    def apply_strategy(stock_data: pd.DataFrame, short_window: int, long_window: int, volume_window: int,
+    def apply_strategy(stock_data: pd.DataFrame, short_window: int, long_window: int, signal_window: int,  volume_window: int,
                        column: str = 'Close') -> pd.DataFrame:
         """
         Apply a combined strategy on stock data incorporating MACD, Bollinger Bands, RSI, and Fibonacci Retracement.
@@ -196,8 +200,8 @@ class AdvancedFinancialIndicator:
             return stock_data
 
         # Calculate indicators
-        stock_data['MACD'], stock_data['Signal_Line'] = (
-            AdvancedFinancialIndicator.compute_macd(stock_data, short_window, long_window))
+        stock_data['MACD'], stock_data['Signal_Line'], stock_data['MACD_Histogram'] = (
+            AdvancedFinancialIndicator.compute_macd(stock_data, short_window, long_window, signal_window))
         stock_data['Bollinger_Upper'], stock_data['Bollinger_Mid'], stock_data['Bollinger_Lower'] = (
             AdvancedFinancialIndicator.compute_bollinger_bands(stock_data, volume_window, column=column))
         stock_data['RSI'] = AdvancedFinancialIndicator.compute_rsi(stock_data, column=column)
